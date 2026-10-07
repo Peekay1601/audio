@@ -1,6 +1,6 @@
 [project]
 name = "elevenlabs-dubbing-studio-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP server: Claude writes voice, sound-design and music prompts for your video; ElevenLabs generates them into a project folder."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -10,6 +10,7 @@ dependencies = [
     "numpy>=1.26",
     "pypdf>=4.0",
     "python-docx>=1.1",
+    "imageio-ffmpeg>=0.5",
 ]
 
 [project.optional-dependencies]

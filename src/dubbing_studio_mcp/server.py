@@ -43,7 +43,7 @@ step-by-step. Golden rules:
 
 mcp = MCPServer("elevenlabs-dubbing-studio", instructions=INSTRUCTIONS)
 _client: ElevenLabs | None = None
-_sem = asyncio.Semaphore(int(os.environ.get("ELEVENLABS_CONCURRENCY", "3")))
+_sem = asyncio.Semaphore(int(os.environ.get("ELEVENLABS_CONCURRENCY") or 3))
 
 
 def el() -> ElevenLabs:
@@ -169,6 +169,44 @@ def project_status(project_path: str) -> str:
     lines.append(f"Music plan: {'yes' if p.read_json('05_music/music_plan.json') else 'no'}; "
                  f"mix: {'yes' if (p.dir('music') / 'music_full.wav').exists() else 'no'}")
     return "\n".join(lines)
+
+
+@mcp.tool()
+def list_projects() -> str:
+    """List the projects in the projects folder chosen in the extension settings."""
+    root = os.environ.get("AUDIO_PROJECTS_ROOT")
+    if not root:
+        return "No projects folder configured; pass full paths to create_project."
+    base = Path(os.path.expanduser(root))
+    projects = sorted(d.name for d in base.iterdir() if (d / "project.json").exists()) if base.exists() else []
+    return f"Projects folder: {base}\n" + ("\n".join(f"  - {n}" for n in projects) or "  (none yet)")
+
+
+@mcp.tool()
+def open_in_finder(project_path: str, item: str = "") -> str:
+    """Open a project folder (or a file inside it, e.g. a voice preview) on the user's
+    computer — in Finder / File Explorer, or the default audio player for a file.
+
+    `item` is relative to the project, e.g. "01_input/video",
+    "03_voices/VOICE_OPTIONS.md" or "03_voices/voice_options/maya/D02_designed.mp3".
+    Use it so the user can drop in uploads or listen to voice options without a terminal.
+    """
+    import subprocess
+    import sys
+
+    p = Project.open(project_path)
+    target = (p.root / item).resolve() if item else p.root
+    if p.root not in (target, *target.parents):
+        raise ValueError("item must be inside the project folder")
+    if not target.exists():
+        raise FileNotFoundError(f"{target} does not exist")
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", str(target)])
+    elif sys.platform == "win32":
+        os.startfile(str(target))  # type: ignore[attr-defined]
+    else:
+        subprocess.Popen(["xdg-open", str(target)])
+    return f"Opened {target}"
 
 
 @mcp.tool()
@@ -1002,8 +1040,9 @@ def audio_post_workflow(project_path: str) -> str:
     return f"""You are the dialogue editor, sound designer and composer for the project at {project_path}.
 Work through these stages with the elevenlabs-dubbing-studio tools. Keep the user in the loop.
 
-0. project_status. If the folder doesn't exist, create_project and tell the user where to upload
-   the video, script and dubbing files; stop until they confirm the upload.
+0. project_status (list_projects shows existing ones; a bare name like "MyFilm" lands in the
+   configured projects folder). If it doesn't exist, create_project, then open_in_finder on
+   01_input so the user can drag in the video, script and dubbing; stop until they confirm.
 1. analyze_project. Read the whole script (read_script if it was truncated). Then view_frames
    across ALL scenes (several calls) so you know locations, time of day, characters' looks,
    action beats and the mood of each scene. Take notes per scene.
@@ -1013,7 +1052,8 @@ Work through these stages with the elevenlabs-dubbing-studio tools. Keep the use
 3. Write one voice prompt per character (age, gender, accent, timbre, pace, energy, attitude,
    grounded in frames + script) and save_voice_prompts. Show them to the user.
 4. For each character: design_voice_options (custom voices) and find_library_voices (existing
-   voices). Then list_voice_options and ASK THE USER TO LISTEN AND CHOOSE. Do not choose for them.
+   voices). Then list_voice_options and ASK THE USER TO LISTEN AND CHOOSE (offer open_in_finder on
+   the character's voice_options folder or a specific preview file). Do not choose for them.
    Offer more options (new prompt/seed/filters) until they are happy.
 5. approve_voice for each choice, then convert_dialogue. Report the stems produced.
 6. Write the soundscape plan scene by scene: an ambience/room-tone bed for every location,

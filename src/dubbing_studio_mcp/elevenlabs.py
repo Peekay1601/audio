@@ -11,15 +11,15 @@ from typing import Any
 
 import httpx
 
-BASE_URL = os.environ.get("ELEVENLABS_BASE_URL", "https://api.elevenlabs.io")
+BASE_URL = (os.environ.get("ELEVENLABS_BASE_URL") or "https://api.elevenlabs.io")
 
-DEFAULT_OUTPUT_FORMAT = os.environ.get("ELEVENLABS_OUTPUT_FORMAT", "mp3_44100_128")
-STT_MODEL = os.environ.get("ELEVENLABS_STT_MODEL", "scribe_v2")
-STS_MODEL = os.environ.get("ELEVENLABS_STS_MODEL", "eleven_multilingual_sts_v2")
-TTV_MODEL = os.environ.get("ELEVENLABS_TTV_MODEL", "eleven_multilingual_ttv_v2")
-SFX_MODEL = os.environ.get("ELEVENLABS_SFX_MODEL", "eleven_text_to_sound_v2")
+DEFAULT_OUTPUT_FORMAT = (os.environ.get("ELEVENLABS_OUTPUT_FORMAT") or "mp3_44100_128")
+STT_MODEL = (os.environ.get("ELEVENLABS_STT_MODEL") or "scribe_v2")
+STS_MODEL = (os.environ.get("ELEVENLABS_STS_MODEL") or "eleven_multilingual_sts_v2")
+TTV_MODEL = (os.environ.get("ELEVENLABS_TTV_MODEL") or "eleven_multilingual_ttv_v2")
+SFX_MODEL = (os.environ.get("ELEVENLABS_SFX_MODEL") or "eleven_text_to_sound_v2")
 # Empty = let ElevenLabs pick its default music model.
-MUSIC_MODEL = os.environ.get("ELEVENLABS_MUSIC_MODEL", "")
+MUSIC_MODEL = (os.environ.get("ELEVENLABS_MUSIC_MODEL") or "")
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
 
@@ -34,14 +34,14 @@ def _drop_none(d: dict[str, Any]) -> dict[str, Any]:
 
 class ElevenLabs:
     def __init__(self, api_key: str | None = None, timeout: float = 600.0):
-        self.api_key = api_key or os.environ.get("ELEVENLABS_API_KEY", "")
+        self.api_key = api_key or (os.environ.get("ELEVENLABS_API_KEY") or "")
         self._timeout = timeout
         self._client: httpx.AsyncClient | None = None
 
     def _http(self) -> httpx.AsyncClient:
         if not self.api_key:
             raise ElevenLabsError(
-                "ELEVENLABS_API_KEY is not set. Add it to the MCP server's env in your Claude config."
+                "No ElevenLabs API key. Add it in Claude Desktop: Settings -> Extensions -> ElevenLabs Dubbing Studio."
             )
         if self._client is None:
             self._client = httpx.AsyncClient(

@@ -1,0 +1,92 @@
+{
+  "manifest_version": "0.4",
+  "name": "elevenlabs-dubbing-studio",
+  "display_name": "ElevenLabs Dubbing Studio",
+  "version": "0.2.0",
+  "description": "Re-voice your dubbing per character, design a full soundscape and score music to your edit with ElevenLabs. Claude writes every prompt.",
+  "long_description": "Upload a finished video, its script and the dubbing. Claude watches the key frames, reads the script and the diarized dubbing, writes a voice prompt per character and gives you voice options to approve. It then re-voices every line with the approved voice, designs the ambience / foley / SFX soundscape and composes music cues timed to the edit. Everything is generated with ElevenLabs and saved as synced stems in a project folder on your computer.",
+  "author": {
+    "name": "Peekay1601"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Peekay1601/audio"
+  },
+  "homepage": "https://github.com/Peekay1601/audio",
+  "icon": "icon.png",
+  "server": {
+    "type": "uv",
+    "entry_point": "main.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "main.py"],
+      "env": {
+        "ELEVENLABS_API_KEY": "${user_config.elevenlabs_api_key}",
+        "AUDIO_PROJECTS_ROOT": "${user_config.projects_folder}",
+        "ELEVENLABS_OUTPUT_FORMAT": "${user_config.output_format}"
+      }
+    }
+  },
+  "tools": [
+    {"name": "create_project", "description": "Create the project folder structure"},
+    {"name": "list_projects", "description": "List projects in your projects folder"},
+    {"name": "open_in_finder", "description": "Open a project folder or file (e.g. a voice preview) on your computer"},
+    {"name": "project_status", "description": "What's uploaded, done and next"},
+    {"name": "analyze_project", "description": "Scene cuts, key frames, audio energy curve, script"},
+    {"name": "read_script", "description": "Read the uploaded script"},
+    {"name": "view_frames", "description": "Look at frames of the video"},
+    {"name": "transcribe_dubbing", "description": "Diarize and transcribe the dubbing"},
+    {"name": "assign_characters", "description": "Map speakers to characters"},
+    {"name": "save_voice_prompts", "description": "Save the voice prompt per character"},
+    {"name": "design_voice_options", "description": "Design custom voice candidates"},
+    {"name": "find_library_voices", "description": "Find matching voices in ElevenLabs"},
+    {"name": "list_voice_options", "description": "Voice approval sheet"},
+    {"name": "approve_voice", "description": "Record your chosen voice"},
+    {"name": "convert_dialogue", "description": "Re-voice dialogue into synced per-character stems"},
+    {"name": "save_soundscape_plan", "description": "Save the sound design plan"},
+    {"name": "generate_soundscape", "description": "Generate ambience, foley and SFX on the timeline"},
+    {"name": "save_music_plan", "description": "Save the music plan"},
+    {"name": "generate_music", "description": "Compose music cues to the edit"},
+    {"name": "render_preview", "description": "Final mix and preview video"}
+  ],
+  "prompts": [
+    {
+      "name": "audio_post_workflow",
+      "description": "Full step-by-step: voices, soundscape and music for one video",
+      "arguments": ["project_path"],
+      "text": "Run the full audio post workflow for the project ${arguments.project_path} using the ElevenLabs Dubbing Studio tools: analyse, transcribe and cast, voice prompts and options for my approval, convert dialogue, soundscape, music, preview."
+    }
+  ],
+  "user_config": {
+    "elevenlabs_api_key": {
+      "type": "string",
+      "title": "ElevenLabs API key",
+      "description": "From elevenlabs.io → Profile → API keys. Needs access to voices, speech-to-text, speech-to-speech, voice design, sound effects and music.",
+      "sensitive": true,
+      "required": true
+    },
+    "projects_folder": {
+      "type": "directory",
+      "title": "Projects folder",
+      "description": "Where your audio projects live. Each project gets its own subfolder with input, voices, soundscape and music folders.",
+      "required": true,
+      "default": "${HOME}/Documents"
+    },
+    "output_format": {
+      "type": "string",
+      "title": "Audio output format",
+      "description": "mp3_44100_128 works on every plan. Use pcm_44100 for uncompressed WAV (Pro plan and above).",
+      "required": false,
+      "default": "mp3_44100_128"
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "keywords": ["elevenlabs", "dubbing", "voice", "sound design", "music", "film", "audio post"],
+  "license": "MIT"
+}

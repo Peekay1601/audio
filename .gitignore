@@ -3,7 +3,8 @@ __pycache__/
 .venv/
 .env
 *.egg-info/
-dist/
+dist/*
+!dist/*.mcpb
 .pytest_cache/
 # local test projects
 projects/

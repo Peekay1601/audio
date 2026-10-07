@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -20,10 +21,20 @@ class MediaError(RuntimeError):
 
 
 def _bin(name: str) -> str:
+    """Locate ffmpeg: FFMPEG_PATH, then PATH, then the copy bundled by imageio-ffmpeg."""
+    if name == "ffmpeg" and os.environ.get("FFMPEG_PATH"):
+        return os.environ["FFMPEG_PATH"]
     path = shutil.which(name)
-    if not path:
-        raise MediaError(f"'{name}' was not found on PATH. Install ffmpeg (it ships ffprobe too).")
-    return path
+    if path:
+        return path
+    if name == "ffmpeg":
+        try:
+            import imageio_ffmpeg
+
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception as exc:  # pragma: no cover - depends on platform wheel
+            raise MediaError(f"ffmpeg not found and the bundled copy failed to load: {exc}") from exc
+    raise MediaError(f"'{name}' was not found on PATH.")
 
 
 def run(args: list[str], input_bytes: bytes | None = None) -> subprocess.CompletedProcess:
@@ -35,6 +46,10 @@ def run(args: list[str], input_bytes: bytes | None = None) -> subprocess.Complet
 
 
 def probe(path: Path) -> dict:
+    try:
+        _bin("ffprobe")
+    except MediaError:
+        return _probe_with_ffmpeg(path)
     proc = run(
         [_bin("ffprobe"), "-v", "error", "-print_format", "json", "-show_format", "-show_streams", str(path)]
     )
@@ -54,6 +69,45 @@ def probe(path: Path) -> dict:
         "fps": fps,
         "audio_channels": audio.get("channels") if audio else None,
         "audio_sample_rate": int(audio["sample_rate"]) if audio and audio.get("sample_rate") else None,
+    }
+
+
+def _probe_with_ffmpeg(path: Path) -> dict:
+    """Fallback when ffprobe isn't installed: parse the banner of ``ffmpeg -i``."""
+    proc = subprocess.run([_bin("ffmpeg"), "-hide_banner", "-i", str(path)], capture_output=True)
+    text = proc.stderr.decode(errors="replace")
+    if "Invalid data found" in text or "No such file" in text:
+        raise MediaError(f"Cannot read {path.name}: {text[-500:]}")
+    duration = 0.0
+    m = re.search(r"Duration: (\d+):(\d+):(\d+(?:\.\d+)?)", text)
+    if m:
+        duration = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+    video = re.search(r"Stream #\S+.*?: Video: .*", text)
+    audio = re.search(r"Stream #\S+.*?: Audio: .*", text)
+    width = height = fps = None
+    if video:
+        size = re.search(r", (\d{2,5})x(\d{2,5})", video.group(0))
+        if size:
+            width, height = int(size.group(1)), int(size.group(2))
+        rate = re.search(r"([\d.]+) fps", video.group(0))
+        fps = float(rate.group(1)) if rate else None
+    channels = rate_hz = None
+    if audio:
+        hz = re.search(r"(\d+) Hz", audio.group(0))
+        rate_hz = int(hz.group(1)) if hz else None
+        line = audio.group(0)
+        channels = 1 if "mono" in line else 2 if "stereo" in line else None
+        ch = re.search(r"(\d+) channels", line)
+        channels = int(ch.group(1)) if ch else channels
+    return {
+        "duration": duration,
+        "has_video": video is not None,
+        "has_audio": audio is not None,
+        "width": width,
+        "height": height,
+        "fps": fps,
+        "audio_channels": channels,
+        "audio_sample_rate": rate_hz,
     }
 
 

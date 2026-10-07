@@ -57,56 +57,59 @@ MyFilm/
     └── preview.mp4                   your video with the new mix, for review
 ```
 
-## Install
+## Install (no terminal)
 
-Requirements: Python 3.10+, [ffmpeg](https://ffmpeg.org/download.html) (with ffprobe) on your
-PATH, and an [ElevenLabs API key](https://elevenlabs.io/app/settings/api-keys).
+1. Download **[`dist/elevenlabs-dubbing-studio.mcpb`](dist/elevenlabs-dubbing-studio.mcpb)**
+   (on GitHub: open the file → **Download raw file**).
+2. Open **Claude Desktop** → **Settings → Extensions**, and drag the `.mcpb` file in (or just
+   double-click it). Click **Install**.
+3. Fill in the settings form:
+   - **ElevenLabs API key**: from elevenlabs.io → Profile → API keys
+   - **Projects folder**: where your projects will live, e.g. `Documents/AudioProjects`
+   - **Audio output format**: leave `mp3_44100_128` unless you're on Pro (`pcm_44100` = WAV)
+4. Enable the extension. The first start takes a minute, because Claude Desktop downloads Python,
+   the dependencies and a bundled ffmpeg automatically. After that it starts instantly.
+
+You don't need Python, ffmpeg or the terminal. To update, install a newer `.mcpb` the same way.
+
+<details>
+<summary>Manual install (developers)</summary>
+
+Requirements: Python 3.10+ (ffmpeg is bundled via `imageio-ffmpeg`; a system ffmpeg is used if found).
 
 ```bash
-git clone https://github.com/Peekay1601/audio.git
-cd audio
-uv venv && uv pip install -e .        # or: python -m venv .venv && .venv/bin/pip install -e .
+git clone https://github.com/Peekay1601/audio.git && cd audio
+uv venv && uv pip install -e .
 ```
 
-macOS: `brew install ffmpeg`. Windows: `winget install ffmpeg`.
-
-### Connect it to Claude Desktop
-
-Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
+Claude Desktop config (`claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "elevenlabs-dubbing-studio": {
       "command": "/ABSOLUTE/PATH/TO/audio/.venv/bin/elevenlabs-dubbing-studio",
-      "env": {
-        "ELEVENLABS_API_KEY": "sk_...",
-        "AUDIO_PROJECTS_ROOT": "/Users/you/AudioProjects"
-      }
+      "env": { "ELEVENLABS_API_KEY": "sk_...", "AUDIO_PROJECTS_ROOT": "/Users/you/AudioProjects" }
     }
   }
 }
 ```
 
-On Windows the command is `C:\\path\\to\\audio\\.venv\\Scripts\\elevenlabs-dubbing-studio.exe`.
+Claude Code: `claude mcp add elevenlabs-dubbing-studio -e ELEVENLABS_API_KEY=sk_... -e AUDIO_PROJECTS_ROOT=~/AudioProjects -- /ABSOLUTE/PATH/TO/audio/.venv/bin/elevenlabs-dubbing-studio`
 
-### Claude Code
-
-```bash
-claude mcp add elevenlabs-dubbing-studio \
-  -e ELEVENLABS_API_KEY=sk_... -e AUDIO_PROJECTS_ROOT=~/AudioProjects \
-  -- /ABSOLUTE/PATH/TO/audio/.venv/bin/elevenlabs-dubbing-studio
-```
+Rebuild the extension: `npx @anthropic-ai/mcpb pack . dist/elevenlabs-dubbing-studio.mcpb`
+</details>
 
 ## How to use it
 
-1. Ask Claude: *"Create an audio project at ~/AudioProjects/MyFilm"*.
-2. Copy your video, script and dubbing into the `01_input/` folders.
+1. In a Claude Desktop chat, say: *"Create an audio project called MyFilm and open the input folder"*.
+   It's created inside your projects folder, and Finder / File Explorer opens on `01_input/`.
+2. Drag your video, script and dubbing into the `video/`, `script/` and `dubbing/` folders.
 3. Run the **`audio_post_workflow`** prompt (in Claude Desktop: the **+** / attach menu → the
    server's prompts), or just say *"Do the full audio post for ~/AudioProjects/MyFilm"*.
 4. Claude will analyse the video, match speakers to characters, write voice prompts and
-   generate voice options. **Listen to the files listed in `03_voices/VOICE_OPTIONS.md`** and
-   tell Claude your picks (e.g. *"MAYA → D02, ARJUN → L03"*). Nothing is converted until you
+   generate voice options. Say *"play MAYA's options"* and Claude opens the previews for you
+   (or see `03_voices/VOICE_OPTIONS.md`), then tell Claude your picks (e.g. *"MAYA → D02, ARJUN → L03"*). Nothing is converted until you
    approve.
 5. Claude converts the dialogue, then writes and generates the soundscape and the music.
    Review the plans (`soundscape_plan.md`, `music_plan.md`) and ask for changes. Any single
@@ -116,7 +119,8 @@ claude mcp add elevenlabs-dubbing-studio \
 
 | Stage | Tool | What it does |
 |---|---|---|
-| Setup | `create_project`, `project_status` | Make the folder tree; show progress and next step |
+| Setup | `create_project`, `list_projects`, `project_status` | Make the folder tree; list projects; show progress and next step |
+| | `open_in_finder` | Opens a project folder or file (e.g. a voice preview) on your computer |
 | Analyse | `analyze_project` | Scene cuts, key frames, audio energy curve, script + character guess |
 | | `read_script`, `view_frames` | Claude reads the script and *looks at* the video |
 | Dialogue | `transcribe_dubbing` | ElevenLabs Scribe: diarization + word timestamps → speaker turns |

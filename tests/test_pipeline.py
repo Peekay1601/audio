@@ -211,3 +211,12 @@ def test_bad_plans_are_rejected(project: Path):
         server.save_soundscape_plan(str(project), [{"layer": "sfx", "start": 1, "prompt": "x"}])
     with pytest.raises(ValueError):
         server.save_music_plan(str(project), [{"start": 5, "end": 2, "prompt": "x"}])
+
+
+def test_probe_fallback_matches_ffprobe(project: Path):
+    video = project / "01_input/video/film.mp4"
+    a = media.probe(video)
+    b = media._probe_with_ffmpeg(video)
+    assert abs(a["duration"] - b["duration"]) < 0.05
+    assert (a["width"], a["height"], a["has_audio"]) == (b["width"], b["height"], b["has_audio"])
+    assert b["fps"] == 25 and b["audio_sample_rate"] == a["audio_sample_rate"]
